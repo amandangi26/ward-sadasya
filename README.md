@@ -1,6 +1,6 @@
 # INC MCD NETWORK (दिल्ली प्रदेश कांग्रेस कमेटी)
 
-[![Latest Release](https://img.shields.io/badge/version-v1.9%20(Build%2010)-blue.svg)](https://github.com/amandangi26/ward-sadasya/releases/latest)
+[![Latest Release](https://img.shields.io/badge/version-v2.0%20(Build%2011)-blue.svg)](https://github.com/amandangi26/ward-sadasya/releases/latest)
 [![Platform](https://img.shields.io/badge/platform-Android%20%7C%20Web%20Admin-green.svg)]()
 [![Backend](https://img.shields.io/badge/backend-Supabase%20Edge%20Functions-3ECF8E.svg)]()
 [![Portal](https://img.shields.io/badge/domain-congressdelhinetwork.com-1B4FA8.svg)](https://congressdelhinetwork.com/mcd)
@@ -125,7 +125,13 @@ v1.8 में अंक प्रणाली को पारदर्शी �
 
 ## 📜 वर्शन इतिहास (Version Changelog)
 
-* **v1.9 (Build 10) - वर्तमान:**
+* **v2.0 (Build 11) - वर्तमान:**
+  * मल्टी-प्रोफ़ाइल लॉगिन (एक ही नंबर पर लीडर पद और वार्ड कार्यकर्ता दोनों प्रोफाइल चुनकर लॉगिन करने की सुविधा)।
+  * मास्टर वार्ड संरचना (Lok Sabha > District > Vidhan Sabha > MCD Ward 250).
+  * एडमिन डेटा विसंगति समाधान (Data Discrepancies टैब — लापता नंबर, डुप्लीकेट, व अनमैप्ड वार्ड्स को 1-क्लिक में ठीक करना)।
+  * टास्क मीडिया रिमूव (गलती से अपलोड फ़ोटो/वीडियो को हटाने की सुविधा)।
+  * अध्यक्ष जी को संदेशों का विषय व टोन (Tone & Topic) विश्लेषण।
+* **v1.9 (Build 10):**
   * स्लाइड-इन मेन्यू (बाएँ से स्लाइड होने वाला मॉडर्न मेन्यू पैनल मय इनबॉक्स काउंट व प्रोफ़ाइल)।
   * सर्च करने योग्य पिकर (वार्ड, विधानसभा एवं अन्य सभी लिस्ट्स सर्च बार के साथ)।
   * सुरक्षित वॉयस नोट्स (रिकॉर्डिंग स्टेट इंडिकेटर एवं सेफ सेंड हैंडलिंग)।
