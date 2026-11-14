@@ -387,6 +387,39 @@ alter table member_profiles add column if not exists link_facebook text;
 alter table member_profiles add column if not exists link_instagram text;
 alter table member_profiles add column if not exists link_x text;
 
+-- ================================================================ Area master and data issues
+-- The structure everything hangs on: Lok Sabha > Congress organisational district > Vidhan Sabha > MCD ward.
+-- Imported from the master Excel (sheet "Wards 250") in the admin panel; nothing here is hard-coded.
+create table if not exists wards (
+  ward_no     int primary key check (ward_no between 1 and 250),
+  ward_name   text,
+  lok_sabha   text,
+  district    text,          -- Congress organisational district
+  ac_no       int,
+  assembly    text,
+  revenue_district text,
+  updated_at  timestamptz not null default now()
+);
+alter table members add column if not exists lok_sabha text;
+alter table members add column if not exists age int;
+alter table members add column if not exists alt_mobile text;
+
+-- Rows from an import that could not be loaded as they are (phone missing, same phone twice, no ward...),
+-- and posts that have nobody yet. The admin fixes them in the Data discrepancies tab and pushes them in.
+create table if not exists data_issues (
+  id         bigserial primary key,
+  kind       text not null check (kind in ('member','observer','dp','gs','president')),
+  issue      text not null,
+  data       jsonb not null default '{}',   -- name, mobile, ward_no, ward_name, assembly, district, lok_sabha...
+  status     text not null default 'open' check (status in ('open','resolved','dismissed')),
+  created_at timestamptz not null default now(),
+  resolved_at timestamptz
+);
+create index if not exists data_issues_status_idx on data_issues (status, kind);
+
+-- Admin's own tag on a message to the President (critical, concern, positive...). Shown to the President.
+alter table president_messages add column if not exists admin_tag text;
+
 -- SECURITY: an earlier version promoted every new Supabase Auth user to admin.
 -- With public sign-ups on, anyone could make themselves an admin. Removed.
 -- Admins and telecallers are now created from the admin panel (Team tab).
@@ -429,7 +462,7 @@ $$;
 do $$
 declare t text;
 begin
-  foreach t in array array['members','sessions','tasks','media','completions','leader_messages','message_views','announcements','settings','admins','telecallers','call_logs','push_tokens','share_events','profile_requests','member_profiles','leaders','leader_sessions','leader_tasks','leader_task_done','field_reports','leader_broadcasts','inbox','leader_calls','member_ratings','member_tasks','president_messages','posters']
+  foreach t in array array['members','sessions','tasks','media','completions','leader_messages','message_views','announcements','settings','admins','telecallers','call_logs','push_tokens','share_events','profile_requests','member_profiles','leaders','leader_sessions','leader_tasks','leader_task_done','field_reports','leader_broadcasts','inbox','leader_calls','member_ratings','member_tasks','president_messages','posters','wards','data_issues']
   loop
     execute format('alter table %I enable row level security', t);
     execute format('drop policy if exists admin_all on %I', t);

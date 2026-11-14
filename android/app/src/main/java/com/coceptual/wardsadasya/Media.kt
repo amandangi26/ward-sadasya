@@ -255,7 +255,7 @@ internal data class Callee(val mobile: String, val name: String, val role: Strin
  * Phones don't let apps know whether a call was answered.
  */
 @Composable
-internal fun rememberCaller(onLogged: () -> Unit = {}): (Callee) -> Unit {
+internal fun rememberCaller(askResult: Boolean = true, onLogged: () -> Unit = {}): (Callee) -> Unit {
     val ctx = LocalContext.current
     var pending by remember { mutableStateOf<Callee?>(null) }
     var asking by remember { mutableStateOf(false) }
@@ -263,7 +263,7 @@ internal fun rememberCaller(onLogged: () -> Unit = {}): (Callee) -> Unit {
     val lifecycle = androidx.compose.ui.platform.LocalLifecycleOwner.current.lifecycle
     DisposableEffect(lifecycle) {
         val obs = androidx.lifecycle.LifecycleEventObserver { _, e ->
-            if (e == androidx.lifecycle.Lifecycle.Event.ON_RESUME && pending != null) asking = true
+            if (e == androidx.lifecycle.Lifecycle.Event.ON_RESUME && pending != null) { if (askResult) asking = true else pending = null }
         }
         lifecycle.addObserver(obs)
         onDispose { lifecycle.removeObserver(obs) }

@@ -25,7 +25,8 @@ export function analyse(text) {
   const neg = NEG.filter((w) => t.includes(w)).length, pos = POS.filter((w) => t.includes(w)).length;
   return { topics: topics.length ? topics : [t ? 'अन्य' : 'वॉइस नोट'], tone: !t ? 'voice' : neg > pos ? 'concern' : pos > neg ? 'positive' : 'neutral' };
 }
-const TONE = { concern: ['Concern', '#B42318'], positive: ['Positive', '#12884A'], neutral: ['Neutral', '#5B6270'], voice: ['Voice note', '#1B4FA8'] };
+const ADMIN_TAGS = [['', 'Auto'], ['critical', 'Critical'], ['concern', 'Concern / problem'], ['negative', 'Negative'], ['positive', 'Positive'], ['neutral', 'Neutral']];
+const TONE = { critical: ['Critical', '#B42318'], negative: ['Negative', '#9A4A0B'], concern: ['Concern', '#B42318'], positive: ['Positive', '#12884A'], neutral: ['Neutral', '#5B6270'], voice: ['Voice note', '#1B4FA8'] };
 
 function Bars({ items }) {
   const max = Math.max(1, ...items.map((x) => x[1]));
@@ -49,7 +50,12 @@ export default function ToPresident() {
     }
   })(); }, []);
 
-  const tagged = useMemo(() => rows.map((r) => ({ ...r, ...analyse(r.text) })), [rows]);
+  // The admin's own tag wins over the automatic one, and is what the President sees in his app.
+  const tagged = useMemo(() => rows.map((r) => { const a = analyse(r.text); return { ...r, ...a, tone: r.admin_tag || a.tone }; }), [rows]);
+  const setTag = async (r, tag) => {
+    await supabase.from('president_messages').update({ admin_tag: tag || null }).eq('id', r.id);
+    setRows((xs) => xs.map((x) => (x.id === r.id ? { ...x, admin_tag: tag || null } : x)));
+  };
   const counts = (f) => Object.entries(tagged.reduce((a, r) => { for (const k of [].concat(f(r))) a[k] = (a[k] || 0) + 1; return a; }, {})).sort((a, b) => b[1] - a[1]);
   const days = [...Array(14)].map((_, i) => istDate(new Date(Date.now() - (13 - i) * 86400000).toISOString()));
   const perDay = days.map((d) => [d.slice(5), tagged.filter((r) => istDate(r.created_at) === d).length]);
@@ -66,7 +72,7 @@ export default function ToPresident() {
       </section>
       <section className="card">
         <h2 style={{ display: 'flex', alignItems: 'center', gap: 8 }}><BarChart3 size={18} />What people are writing about</h2>
-        <p className="sub">Messages to the DPCC President from ward members and observers, sorted into topics and tone by keywords. Updates as messages come in.</p>
+        <p className="sub">Messages to the DPCC President from ward members and observers, sorted into topics and tone by keywords. Set your own tag on any message; the President sees that tag in his app.</p>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(300px,1fr))', gap: 20, marginTop: 10 }}>
           <div><b>Topics</b><Bars items={counts((r) => r.topics)} /></div>
           <div><b>Tone</b><Bars items={counts((r) => TONE[r.tone][0])} /></div>
@@ -88,6 +94,9 @@ export default function ToPresident() {
               <span className="muted" style={{ fontSize: 12.5 }}>{r.mobile} · {r.sender_role === 'member' ? (r.ward_no ? wardLabel(r.ward_no) : 'Member') : 'Observer'}{r.assembly ? ' · ' + r.assembly : ''}{r.district ? ' · ' + r.district : ''} · {timeAgo(r.created_at)}</span>
               <span className="tag" style={{ color: TONE[r.tone][1] }}>{TONE[r.tone][0]}</span>
               {r.topics.map((t) => <span key={t} className="tag mute">{t}</span>)}
+              <select value={r.admin_tag || ''} onChange={(e) => setTag(r, e.target.value)} style={{ marginLeft: 'auto', padding: '4px 8px', fontSize: 12.5 }} aria-label="Tag shown to the President">
+                {ADMIN_TAGS.map(([k, l]) => <option key={k} value={k}>Tag: {l}</option>)}
+              </select>
             </div>
             {r.text && <p style={{ margin: '6px 0' }}>{r.text}</p>}
             {r.audio_path && files[r.audio_path] && <audio controls src={files[r.audio_path]} style={{ width: 280 }} />}
