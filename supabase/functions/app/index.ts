@@ -169,19 +169,25 @@ Deno.serve(async (req) => {
     if (action === "login") {
       const mobile = String(body.mobile ?? "").replace(/\D/g, "").slice(-10);
       if (!/^[6-9]\d{9}$/.test(mobile)) return json({ error: "invalid_mobile" }, 400);
+      // One number can hold two profiles: a leader post (e.g. Observer of one assembly) and a ward member.
       const { data: ld } = await db.from("leaders").select("*").eq("mobile", mobile).eq("active", true).maybeSingle();
+      const { data: m } = await db.from("members").select("*").eq("mobile", mobile).eq("active", true).maybeSingle();
+      if (!ld && !m) return json({ error: "not_registered", helpline: (await settings()).helpline }, 404);
+      const profiles: any[] = [];
       if (ld) {
         const { data: ls, error: le } = await db.from("leader_sessions").insert({ mobile }).select("token").single();
         if (le) throw le;
         if (!ld.first_login_at) await db.from("leaders").update({ first_login_at: new Date().toISOString() }).eq("mobile", mobile);
-        return json({ token: ls.token, role: ld.role, leader: ld, member: { name: ld.name, mobile, ward_no: 0 } });
+        profiles.push({ role: ld.role, token: ls.token, name: ld.name, district: ld.district, assembly: ld.assembly });
       }
-      const { data: m } = await db.from("members").select("*").eq("mobile", mobile).eq("active", true).maybeSingle();
-      if (!m) return json({ error: "not_registered", helpline: (await settings()).helpline }, 404);
-      const { data: s, error } = await db.from("sessions").insert({ mobile }).select("token").single();
-      if (error) throw error;
-      if (!m.first_login_at) await db.from("members").update({ first_login_at: new Date().toISOString() }).eq("mobile", mobile);
-      return json({ token: s.token, role: "member", member: m });
+      if (m) {
+        const { data: s, error } = await db.from("sessions").insert({ mobile }).select("token").single();
+        if (error) throw error;
+        if (!m.first_login_at) await db.from("members").update({ first_login_at: new Date().toISOString() }).eq("mobile", mobile);
+        profiles.push({ role: "member", token: s.token, name: m.name, ward_no: m.ward_no, ward_name: m.ward_name, district: memberDistrict(m), assembly: m.assembly });
+      }
+      // token / role / leader / member keep older app versions working: they open the first profile.
+      return json({ token: profiles[0].token, role: profiles[0].role, leader: ld ?? undefined, member: m ?? { name: ld.name, mobile, ward_no: 0 }, profiles });
     }
 
     const member = await memberFromSession(req.headers.get("x-session"));
@@ -270,6 +276,22 @@ Deno.serve(async (req) => {
       return json({ task: list.find((x) => x.id === taskId) });
     }
 
+    // ---- Remove a file uploaded by mistake (the latest photo or video of that task) ----
+    if (action === "remove_media") {
+      const taskId = Number(body.task_id);
+      const kind = body.kind === "photo" ? "photo" : "video";
+      const { data: last } = await db.from("media").select("id, path").eq("mobile", mobile).eq("task_id", taskId).eq("kind", kind)
+        .order("created_at", { ascending: false }).limit(1).maybeSingle();
+      if (!last) return json({ error: "nothing_to_remove" }, 404);
+      await db.from("media").delete().eq("id", last.id);
+      await db.storage.from("uploads").remove([last.path]);
+      // The task is no longer complete in full, so its tick (and its 100 points) goes until the file is replaced.
+      await db.from("completions").delete().eq("mobile", mobile).eq("task_id", taskId);
+      const { data: t } = await db.from("tasks").select("task_date").eq("id", taskId).maybeSingle();
+      const list = t ? await tasksForDate(mobile, t.task_date) : [];
+      return json({ task: list.find((x) => x.id === taskId) ?? null });
+    }
+
     // ---- Tick: only when at least 1 video is uploaded ----
     if (action === "complete") {
       const taskId = Number(body.task_id);
@@ -324,6 +346,25 @@ Deno.serve(async (req) => {
         photo_url = signed?.signedUrl ?? null;
       }
       if (body.lite) return json({ latest, approved, photo_url });
+      const { data: master } = await db.from("wards").select("*").order("ward_no");
+      if (master && master.length) {
+        const u = (xs: unknown[]) => [...new Set(xs.map((x) => String(x ?? "").trim()).filter(Boolean))];
+        return json({
+          latest, approved, photo_url,
+          defaults: {
+            full_name: member.name, ward_no: member.ward_no, assembly: member.assembly ?? null,
+            district: memberDistrict(member) || null, lok_sabha: member.lok_sabha ?? null, contact_mobile: mobile,
+          },
+          options: {
+            wards: master.map((w) => ({ no: w.ward_no, name: w.ward_name, assembly: w.assembly })),
+            assemblies: u(master.map((w) => w.assembly)).sort((a, b) => a.localeCompare(b)),
+            districts: u(master.map((w) => w.district)).sort((a, b) => a.localeCompare(b)),
+            lok_sabha: u(master.map((w) => w.lok_sabha)).sort((a, b) => a.localeCompare(b)),
+            // For narrowing each list by the choice above it: Lok Sabha > district > assembly > ward
+            tree: master.map((w) => ({ w: w.ward_no, a: w.assembly, d: w.district, l: w.lok_sabha })),
+          },
+        });
+      }
       const { data: rows } = await db.from("members").select("ward_no, ward_name, assembly, district, zone").range(0, 9999);
       const wardNames = new Map<number, string>();
       for (const r of rows ?? []) if (r.ward_no && r.ward_name && !wardNames.has(r.ward_no)) wardNames.set(r.ward_no, r.ward_name);

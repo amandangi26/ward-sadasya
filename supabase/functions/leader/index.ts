@@ -64,7 +64,8 @@ async function leaderFromSession(token: string | null) {
  * a District President only their district, an Observer only their assembly.
  */
 async function overview(me: any) {
-  const [members, stats, leaders, recent, reports, ratings] = await Promise.all([
+  const [master, members, stats, leaders, recent, reports, ratings] = await Promise.all([
+    all("wards", "ward_no, ward_name, assembly, district"),
     all("members", "mobile, name, ward_no, ward_name, assembly, district, zone, first_login_at, last_active_at", (q) => q.eq("active", true)),
     all("member_stats", "mobile, points, videos, photos, shares, full_tasks"),
     all("leaders", "mobile, name, role, district, assembly, first_login_at, last_active_at", (q) => q.eq("active", true)),
@@ -104,13 +105,17 @@ async function overview(me: any) {
   // Wards
   const wardMap = new Map<number, any[]>();
   for (const m of mem) (wardMap.get(m.ward_no) ?? wardMap.set(m.ward_no, []).get(m.ward_no)!).push(m);
-  const maxAvg = Math.max(1, ...[...wardMap.values()].map((ms) => ms.reduce((a, m) => a + m.points, 0) / ms.length));
+  const maxAvg = Math.max(1, ...[...wardMap.values()].filter((ms) => ms.length).map((ms) => ms.reduce((a, m) => a + m.points, 0) / ms.length));
+  const masterByNo = new Map(master.map((w) => [w.ward_no, w]));
+  for (const w of master) if (!wardMap.has(w.ward_no)) wardMap.set(w.ward_no, []);
   const wards = [...wardMap.entries()].map(([no, ms]) => {
+    const mw = masterByNo.get(no);
+    if (!ms.length) return { no, name: mw?.ward_name ?? null, assembly: mw?.assembly ?? "", district: mw?.district ?? "", total: 0, active: 0, score: 0, level: "none" };
     const active = ms.filter((m) => m.status === "active").length;
     const avg = ms.reduce((a, m) => a + m.points, 0) / ms.length;
     const score = Math.round(100 * (0.6 * (active / ms.length) + 0.4 * Math.min(avg / maxAvg, 1)));
     return {
-      no, name: ms[0].ward_name, assembly: ms[0].assembly, district: ms[0].district, total: ms.length, active, score,
+      no, name: ms[0].ward_name ?? mw?.ward_name ?? null, assembly: ms[0].assembly || (mw?.assembly ?? ""), district: ms[0].district || (mw?.district ?? ""), total: ms.length, active, score,
       level: active === 0 ? "none" : score >= 60 ? "strong" : score >= 40 ? "ok" : "weak",
     };
   }).sort((a, b) => b.score - a.score).map((w, i) => ({ ...w, rank: i + 1 }));
@@ -198,24 +203,22 @@ async function overview(me: any) {
   };
 }
 
-/** Ten people the General Secretary could call today, each with the reason. Suggestions, not a task. */
-function suggestions(districts: any[], assemblies: any[], mem: any[]) {
-  const out: any[] = [], seen = new Set<string>();
-  const add = (mobile: string | undefined, name: string, role: string, why: string) => {
-    if (!mobile || seen.has(mobile) || out.length >= 10) return;
-    seen.add(mobile); out.push({ mobile, name, role, why });
+/** People the General Secretary could call today: 5 observers and 5 ward members, each with the reason. Suggestions, not a task. */
+function suggestions(_districts: any[], assemblies: any[], mem: any[]) {
+  const obs: any[] = [], mems: any[] = [], seen = new Set<string>();
+  const add = (list: any[], group: string, mobile: string | undefined, name: string, role: string, why: string) => {
+    if (!mobile || seen.has(mobile) || list.length >= 5) return;
+    seen.add(mobile); list.push({ mobile, name, role, why, group });
   };
-  districts.slice(-2).reverse().forEach((d) => d.dp && add(d.dp.mobile, d.dp.name, `ज़िला अध्यक्ष, ${d.name}`, `ज़िला ${d.rank}/${districts.length} पर, सबसे पीछे`));
-  const down = districts.find((d) => d.growth < 0 && d.dp);
-  if (down) add(down.dp.mobile, down.dp.name, `ज़िला अध्यक्ष, ${down.name}`, `ज़िला इस हफ़्ते ${-down.growth}% नीचे गया`);
-  assemblies.filter((a) => a.observer).sort((a, b) => (b.last_report_days ?? 99) - (a.last_report_days ?? 99)).slice(0, 2)
-    .forEach((a) => add(a.observer.mobile, a.observer.name, `ऑब्ज़र्वर, ${a.name}`, a.last_report_days == null ? "अब तक कोई फ़ील्ड रिपोर्ट नहीं" : `${a.last_report_days} दिन से कोई फ़ील्ड रिपोर्ट नहीं`));
-  const last = assemblies.filter((a) => a.observer).slice(-1)[0];
-  if (last) add(last.observer.mobile, last.observer.name, `ऑब्ज़र्वर, ${last.name}`, `ऑब्ज़र्वर रैंक ${last.rank}/${assemblies.length}, सबसे नीचे`);
+  const withObs = assemblies.filter((a) => a.observer);
+  withObs.slice().sort((a, b) => (b.last_report_days ?? 99) - (a.last_report_days ?? 99)).slice(0, 3)
+    .forEach((a) => add(obs, "observer", a.observer.mobile, a.observer.name, `ऑब्ज़र्वर, ${a.name}`, a.last_report_days == null ? "अब तक कोई फ़ील्ड रिपोर्ट नहीं" : `${a.last_report_days} दिन से कोई फ़ील्ड रिपोर्ट नहीं`));
+  withObs.slice().reverse().forEach((a) => add(obs, "observer", a.observer.mobile, a.observer.name, `ऑब्ज़र्वर, ${a.name}`, `रैंक ${a.rank}/${assemblies.length}, सदस्य ${a.active}/${a.total} एक्टिव`));
   mem.filter((m) => m.points >= 200 && (m.last_active_days ?? 0) >= 4).sort((a, b) => b.points - a.points).slice(0, 2)
-    .forEach((m) => add(m.mobile, m.name, `वार्ड ${m.ward_no}`, `पहले ${m.points} अंक, अब ${m.last_active_days} दिन से बंद`));
-  mem.filter((m) => m.status === "never").slice(0, 10).forEach((m) => add(m.mobile, m.name, `वार्ड ${m.ward_no}`, "ऐप में अब तक लॉगिन नहीं किया"));
-  return out;
+    .forEach((m) => add(mems, "member", m.mobile, m.name, `वार्ड ${m.ward_no}`, `पहले ${m.points} अंक, अब ${m.last_active_days} दिन से बंद`));
+  mem.filter((m) => m.status === "inactive").forEach((m) => add(mems, "member", m.mobile, m.name, `वार्ड ${m.ward_no}`, `${m.last_active_days} दिन से ऐप नहीं खोला`));
+  mem.filter((m) => m.status === "never").forEach((m) => add(mems, "member", m.mobile, m.name, `वार्ड ${m.ward_no}`, "ऐप में अब तक लॉगिन नहीं किया"));
+  return [...obs, ...mems];
 }
 
 /** Leaders a task at this level and target reaches. */
@@ -253,6 +256,30 @@ async function deliver(b: any, sender: any) {
     })));
   }
   return to.length;
+}
+
+// Topic and tone of a message to the President, from keywords. Keep in step with analyse() in admin/src/ToPresident.jsx.
+const TOPICS: [string, string[]][] = [
+  ["पानी", ["पानी", "water", "जल", "टैंकर", "सीवर", "sewer", "नाली", "drain"]],
+  ["सड़क", ["सड़क", "सडक", "road", "गड्ढ", "pothole", "गली", "फुटपाथ"]],
+  ["बिजली", ["बिजली", "light", "electric", "बिल", "bill", "लाइट"]],
+  ["सफ़ाई", ["कूड़ा", "कचरा", "सफाई", "सफ़ाई", "garbage", "waste", "गंदगी", "dustbin"]],
+  ["प्रदूषण", ["प्रदूषण", "pollution", "धुआं", "smog", "हवा", "aqi"]],
+  ["स्वास्थ्य", ["अस्पताल", "hospital", "दवा", "डॉक्टर", "doctor", "clinic", "मोहल्ला", "डेंगू", "dengue", "health"]],
+  ["शिक्षा", ["स्कूल", "school", "फीस", "fees", "टीचर", "शिक्षा", "education"]],
+  ["पार्टी और संगठन", ["पार्टी", "संगठन", "कार्यकर्ता", "ब्लॉक", "अध्यक्ष", "ऑब्ज़र्वर", "observer", "party", "टिकट", "ticket", "चुनाव", "election"]],
+  ["ऐप", ["ऐप", "app", "अपलोड", "upload", "अंक", "points", "लॉगिन", "login", "वीडियो", "video"]],
+  ["नौकरी और रोज़गार", ["नौकरी", "रोजगार", "रोज़गार", "job", "वेंडर", "रेहड़ी", "दुकान", "महंगाई", "price"]],
+];
+const NEG = ["समस्या", "परेशान", "नाराज", "नाराज़", "शिकायत", "गुस्सा", "खराब", "ख़राब", "नहीं मिल", "धोखा", "बंद", "problem", "angry", "bad", "issue", "complaint", "not working"];
+const POS = ["धन्यवाद", "शुक्रिया", "अच्छा", "बधाई", "साथ हैं", "thanks", "thank", "good", "great", "सुझाव", "suggest"];
+const TAG_HI: Record<string, string> = { critical: "बहुत ज़रूरी", concern: "चिंता / समस्या", negative: "नाराज़गी", positive: "अच्छी बात", neutral: "सामान्य", voice: "वॉइस नोट" };
+function tagsOf(m: any) {
+  const t = String(m.text ?? "").toLowerCase();
+  const topics = TOPICS.filter(([, words]) => words.some((w) => t.includes(w.toLowerCase()))).map(([hi]) => hi);
+  const neg = NEG.filter((w) => t.includes(w)).length, pos = POS.filter((w) => t.includes(w)).length;
+  const tone = m.admin_tag || (!t ? "voice" : neg > pos ? "concern" : pos > neg ? "positive" : "neutral");
+  return { tone, tone_label: TAG_HI[tone] ?? tone, topics };
 }
 
 const signed = async (path: string | null) =>
@@ -453,7 +480,7 @@ Deno.serve(async (req) => {
       if (me.role !== "president") return json({ error: "not_allowed" }, 403);
       const rows = await all("president_messages", "*", (q) => q.order("created_at", { ascending: false }).limit(100));
       return json({ messages: await Promise.all(rows.map(async (r) => ({
-        ...r, audio_url: await signed(r.audio_path),
+        ...r, ...tagsOf(r), audio_url: await signed(r.audio_path),
         media: await Promise.all((r.media ?? []).map(async (m: any) => ({ ...m, url: await signed(m.path) }))),
       }))) });
     }

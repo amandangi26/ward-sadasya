@@ -138,15 +138,16 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-/** Upload screen: idle, sending one file (with progress), or submitting the finished task. */
+/** Upload screen: idle, sending one file (with progress), removing a wrong file, or submitting the finished task. */
 internal sealed interface TaskPhase {
     data object Idle : TaskPhase
     data class Uploading(val kind: String, val progress: Float = 0f, val batch: String? = null) : TaskPhase
+    data object Removing : TaskPhase
     data object Submitting : TaskPhase
 }
 
 /** Login: the number that was found, waiting for the person to confirm it is them. */
-internal data class LoginMatch(val token: String, val role: String, val who: JSONObject)
+internal data class LoginMatch(val token: String, val role: String, val who: JSONObject, val profiles: List<JSONObject> = emptyList())
 
 internal sealed class Screen {
     object Login : Screen()
@@ -208,11 +209,15 @@ internal fun WardApp(openTask: MutableState<Long?> = mutableStateOf(null), openI
     LaunchedEffect(openInbox.value) {
         if (openInbox.value && screen != Screen.Login && role == "member") { screen = Screen.Inbox; openInbox.value = false }
     }
+    val switchProfile: (() -> Unit)? = Store.otherProfile(ctx)?.takeIf { screen != Screen.Login }?.let { other ->
+        { Store.activate(ctx, other); role = Store.role(ctx); homeData = null; screen = Screen.Home }
+    }
     if (screen != Screen.Login && role != "member") {
-        LeaderApp(role = role, onLogout = logout)
+        key(role) { LeaderApp(role = role, onLogout = logout, onSwitch = switchProfile, openInbox = openInbox) }
         return
     }
     val goHome = { if (screen is Screen.Task || screen is Screen.Profile) homeKey++; screen = Screen.Home }
+    val backFromInbox = { homeKey++; screen = Screen.Home }
     val nav = Nav(
         home = goHome,
         messages = { screen = Screen.Messages },
@@ -248,6 +253,8 @@ internal fun WardApp(openTask: MutableState<Long?> = mutableStateOf(null), openI
                     nav = nav,
                     onTask = { t, shares -> screen = Screen.Task(t, shares) },
                     onLogout = logout,
+                    otherProfile = Store.otherProfile(ctx),
+                    onSwitch = switchProfile,
                     onMenu = { item -> screen = when (item) {
                         "posters" -> Screen.Posters
                         "inbox" -> Screen.Inbox
@@ -262,7 +269,7 @@ internal fun WardApp(openTask: MutableState<Long?> = mutableStateOf(null), openI
                 is Screen.Progress -> ProgressScreen(data = homeData, onData = { homeData = it }, nav = nav, onProfile = { screen = Screen.Profile })
                 is Screen.Profile -> ProfileScreen(onBack = { screen = Screen.Progress }, onLogout = logout)
                 is Screen.Posters -> PostersScreen(onBack = { screen = Screen.Home })
-                is Screen.Inbox -> InboxScreen(onBack = { screen = Screen.Home })
+                is Screen.Inbox -> InboxScreen(onBack = backFromInbox)
                 is Screen.OwnTasks -> OwnTasksScreen(onBack = { screen = Screen.Home }, onLogout = logout)
                 is Screen.ToPresident -> ToPresidentScreen(leader = false, onBack = { screen = Screen.Home })
             }
@@ -351,6 +358,7 @@ internal fun LoginScreen(onDone: () -> Unit) {
                                     token = r.getString("token"),
                                     role = r.optString("role", "member").ifBlank { "member" },
                                     who = r.optJSONObject("leader") ?: r.getJSONObject("member"),
+                                    profiles = r.optJSONArray("profiles")?.let { a -> (0 until a.length()).map { a.getJSONObject(it) } } ?: emptyList(),
                                 )
                             } catch (e: ApiError) {
                                 error = if (e.code == "not_registered") "यह नंबर सूची में नहीं मिला।" else "मोबाइल नंबर सही नहीं है।"
@@ -425,15 +433,32 @@ internal fun LoginScreen(onDone: () -> Unit) {
                     ProfileField("वार्ड", "वार्ड ${m.optInt("ward_no")}" + (wardName?.let { " ($it)" } ?: ""))
                     val district = (m.optString("district").takeIf { it.isNotBlank() && it != "null" }
                         ?: m.optString("zone").takeIf { it.isNotBlank() && it != "null" })
-                    if (district != null) ProfileField("ज़िला (District)", district)
+                    if (district != null) ProfileField("कांग्रेस संगठनात्मक ज़िला", district)
                     val ac = m.optString("assembly").takeIf { it.isNotBlank() && it != "null" }
                     if (ac != null) ProfileField("विधानसभा", ac)
                     }
                     ProfileField("मोबाइल", "+91 $mobile")
                 }
 
+                // This number holds two profiles (for example Observer of one assembly and member of a ward): let them pick.
+                val others = match.profiles.filter { it.optString("role") != match.role }
+                if (others.isNotEmpty()) {
+                    Text("इस नंबर पर आपकी दो प्रोफ़ाइल हैं। जो खोलनी हो वह चुनें। बाद में मेन्यू से बदल भी सकते हैं।", fontSize = 13.sp, color = Muted, lineHeight = 19.sp)
+                    others.forEach { o ->
+                        OutlinedButton(
+                            onClick = { Store.setProfiles(ctx, match.profiles); Store.activate(ctx, o); onDone() },
+                            modifier = Modifier.fillMaxWidth().height(52.dp), shape = RoundedCornerShape(12.dp),
+                        ) {
+                            Text(
+                                (ROLE_HI[o.optString("role")] ?: "") + " प्रोफ़ाइल खोलें" + (if (o.optString("role") == "member") " (वार्ड ${o.optInt("ward_no")})" else o.str("assembly")?.let { " ($it)" } ?: ""),
+                                fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = Navy,
+                            )
+                        }
+                    }
+                }
                 Button(
                     onClick = {
+                        Store.setProfiles(ctx, match.profiles)
                         Store.setToken(ctx, match.token)
                         Store.setRole(ctx, match.role)
                         onDone()
@@ -442,7 +467,7 @@ internal fun LoginScreen(onDone: () -> Unit) {
                     shape = RoundedCornerShape(12.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = Green),
                 ) {
-                    Text("आगे बढ़ें  ", fontSize = 18.sp, fontWeight = FontWeight.Bold); Icon(Icons.AutoMirrored.Filled.ArrowForward, null)
+                    Text(if (others.isNotEmpty()) "${ROLE_HI[match.role] ?: ""} प्रोफ़ाइल खोलें  " else "आगे बढ़ें  ", fontSize = if (others.isNotEmpty()) 16.sp else 18.sp, fontWeight = FontWeight.Bold); Icon(Icons.AutoMirrored.Filled.ArrowForward, null)
                 }
 
                 TextButton(
@@ -584,6 +609,8 @@ internal fun HomeScreen(
     onTask: (JSONObject, List<JSONObject>) -> Unit,
     onLogout: () -> Unit,
     onMenu: (String) -> Unit = {},
+    otherProfile: JSONObject? = null,
+    onSwitch: (() -> Unit)? = null,
 ) {
     val ctx = LocalContext.current
     val drawer = rememberDrawerState(DrawerValue.Closed)
@@ -687,7 +714,8 @@ internal fun HomeScreen(
             SideMenu(
                 name = "${member.optString("name").trim()} Ji",
                 sub = "वार्ड ${member.optInt("ward_no")}" + (district?.let { " · $it" } ?: ""),
-                items = listOf(
+                items = listOfNotNull(
+                    if (otherProfile != null && onSwitch != null) MenuItem(Icons.Filled.SwitchAccount, "${ROLE_HI[otherProfile.optString("role")] ?: ""} प्रोफ़ाइल खोलें") { onSwitch() } else null,
                     MenuItem(Icons.Filled.MarkEmailUnread, "मेरा इनबॉक्स", badge = d.optInt("unread_inbox")) { onMenu("inbox") },
                     MenuItem(Icons.Filled.Image, "पोस्टर और बैनर") { onMenu("posters") },
                     MenuItem(Icons.Filled.AddTask, "अपना टास्क जोड़ें") { onMenu("own") },
@@ -1289,7 +1317,7 @@ internal fun TaskScreen(initial: JSONObject, shareTasks: List<JSONObject>, onBac
     var freshShares by remember { mutableStateOf(shareTasks) }
     var perShare by remember { mutableIntStateOf(PTS_SHARE) }
     var totalPoints by remember { mutableIntStateOf(-1) }
-    val busy = uploadingKind != null
+    val busy = phase !is TaskPhase.Idle
 
     // Keep screen awake while uploading so Android OS does not suspend network
     DisposableEffect(busy) {
@@ -1356,6 +1384,20 @@ internal fun TaskScreen(initial: JSONObject, shareTasks: List<JSONObject>, onBac
             return false
     }
 
+    /** Takes off the last uploaded photo or video so the right one can be put in. */
+    fun removeLast(kind: String) {
+        phase = TaskPhase.Removing
+        scope.launch {
+            try {
+                Api.call(ctx, "remove_media", JSONObject().put("task_id", taskId).put("kind", kind)).optJSONObject("task")
+                    ?.let { videos = it.optInt("videos"); photos = it.optInt("photos"); done = false }
+            } catch (e: Exception) {
+                Toast.makeText(ctx, "हट नहीं पाया, एक बार फिर कोशिश करें", Toast.LENGTH_SHORT).show()
+            }
+            phase = TaskPhase.Idle
+        }
+    }
+
     fun upload(uri: Uri, kind: String) {
         phase = TaskPhase.Uploading(kind)
         scope.launch { uploadOne(uri, kind); phase = TaskPhase.Idle }
@@ -1409,7 +1451,7 @@ internal fun TaskScreen(initial: JSONObject, shareTasks: List<JSONObject>, onBac
                 Row { Text("वीडियो", fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f)); Text("$videos / $slots", fontWeight = FontWeight.Bold) }
                 for (i in 0 until slots) {
                     when {
-                        i < videos -> SlotRow("वीडियो ${i + 1}", "अपलोड पूरा", GreenText, filled = true) {}
+                        i < videos -> SlotRow("वीडियो ${i + 1}", "अपलोड पूरा", GreenText, filled = true, onRemove = if (i == videos - 1 && !busy) ({ removeLast("video") }) else null) {}
                         i == videos && uploadingKind == "video" -> UploadingRow("वीडियो ${i + 1}", progress ?: 0f)
                         else -> SlotRow("वीडियो ${i + 1}", "गैलरी से वीडियो चुनें", Blue, filled = false, enabled = !busy && i == videos) {
                             pickVideo.launch("video/*")
@@ -1426,7 +1468,7 @@ internal fun TaskScreen(initial: JSONObject, shareTasks: List<JSONObject>, onBac
                 Row { Text("फोटो", fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f)); Text("$photos / $NEED_PHOTOS", fontWeight = FontWeight.Bold) }
                 for (i in 0 until NEED_PHOTOS) {
                     when {
-                        i < photos -> SlotRow("फोटो ${i + 1}", "अपलोड पूरा", GreenText, filled = true) {}
+                        i < photos -> SlotRow("फोटो ${i + 1}", "अपलोड पूरा", GreenText, filled = true, onRemove = if (i == photos - 1 && !busy) ({ removeLast("photo") }) else null) {}
                         i == photos && uploadingKind == "photo" -> UploadingRow(photoBatch?.let { "फोटो $it" } ?: "फोटो ${i + 1}", progress ?: 0f)
                         else -> SlotRow("फोटो ${i + 1}", "गैलरी से फोटो चुनें (एक साथ दोनों भी चुन सकते हैं)", Blue, filled = false, enabled = !busy && i == photos) {
                             pickPhoto.launch("image/*")
@@ -1591,7 +1633,7 @@ internal fun Chip(text: String, bg: Color, fg: Color) {
 }
 
 @Composable
-internal fun SlotRow(title: String, sub: String, subColor: Color, filled: Boolean, enabled: Boolean = true, onClick: () -> Unit) {
+internal fun SlotRow(title: String, sub: String, subColor: Color, filled: Boolean, enabled: Boolean = true, onRemove: (() -> Unit)? = null, onClick: () -> Unit) {
     Row(
         Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp)).background(Color.White)
             .then(if (!filled) Modifier.border(BorderStroke(1.5.dp, if (enabled) Color(0xFF8AABDD) else Line), RoundedCornerShape(10.dp)) else Modifier)
@@ -1602,10 +1644,14 @@ internal fun SlotRow(title: String, sub: String, subColor: Color, filled: Boolea
             Modifier.size(44.dp).clip(RoundedCornerShape(8.dp)).background(if (filled) Color(0xFF1E2433) else Color(0xFFE8EEF8)),
             contentAlignment = Alignment.Center,
         ) { Icon(if (filled) Icons.Filled.PlayArrow else Icons.Filled.Add, null, tint = if (filled) Color.White else Blue) }
-        Column(Modifier.padding(start = 10.dp)) {
+        Column(Modifier.padding(start = 10.dp).weight(1f)) {
             Text(title, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = if (enabled || filled) Ink else Color(0xFFB0B5BE))
             Text(sub, fontSize = 12.sp, color = if (enabled || filled) subColor else Color(0xFFB0B5BE))
         }
+        if (filled && onRemove != null) Box(
+            Modifier.size(34.dp).clip(CircleShape).background(Color(0xFFFDE8E8)).clickable { onRemove() },
+            contentAlignment = Alignment.Center,
+        ) { Icon(Icons.Filled.Close, "हटाएं", tint = Color(0xFF9B1C1C), modifier = Modifier.size(18.dp)) }
     }
 }
 
@@ -2168,7 +2214,7 @@ internal fun ProfileScreen(onBack: () -> Unit, onLogout: () -> Unit) {
             val def = r.optJSONObject("defaults") ?: JSONObject()
             fun pick(k: String) = src.str(k) ?: def.str(k) ?: ""
             name = pick("full_name"); details = src.str("details") ?: ""
-            ward = pick("ward_no"); assembly = pick("assembly"); lokSabha = src.str("lok_sabha") ?: ""
+            ward = pick("ward_no"); assembly = pick("assembly"); lokSabha = pick("lok_sabha")
             district = pick("district"); family = src.str("family_members") ?: ""
             mobile = pick("contact_mobile"); altMobile = src.str("alt_mobile") ?: ""
             dob = src.str("dob") ?: ""; gender = src.str("gender") ?: ""
@@ -2242,6 +2288,13 @@ internal fun ProfileScreen(onBack: () -> Unit, onLogout: () -> Unit) {
             (0 until a.length()).map { i -> val w = a.getJSONObject(i); val no = w.optInt("no"); no.toString() to ("वार्ड $no" + (w.str("name")?.let { " · $it" } ?: "")) }
         } ?: (1..250).map { it.toString() to "वार्ड $it" }
         val status = r.optJSONObject("latest")?.optString("status")
+        // The area master from the server (w = ward, a = assembly, d = district, l = Lok Sabha). Empty on an older server.
+        val tree = remember(r) { opts.optJSONArray("tree")?.let { a -> (0 until a.length()).map { a.getJSONObject(it) } } ?: emptyList() }
+        val lokOptions = list("lok_sabha").ifEmpty { DELHI_LOK_SABHA }
+        val districtOptions = if (tree.isEmpty()) list("districts") else tree.filter { lokSabha.isBlank() || it.optString("l") == lokSabha }.map { it.optString("d") }.distinct().sorted()
+        val assemblyOptions = if (tree.isEmpty()) list("assemblies").ifEmpty { DELHI_ASSEMBLIES } else tree.filter { (district.isBlank() || it.optString("d") == district) && (lokSabha.isBlank() || it.optString("l") == lokSabha) }.map { it.optString("a") }.distinct().sorted()
+        val wardsInAssembly = tree.filter { assembly.isNotBlank() && it.optString("a") == assembly }.map { it.optInt("w").toString() }.toSet()
+        val wardOptions = if (wardsInAssembly.isEmpty()) wards else wards.filter { it.first in wardsInAssembly }
 
         Column(Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             when (status) {
@@ -2268,15 +2321,16 @@ internal fun ProfileScreen(onBack: () -> Unit, onLogout: () -> Unit) {
             OutlinedTextField(name, { name = it.take(80) }, label = { Text("पूरा नाम *") }, singleLine = true, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp))
             DateField("जन्म तिथि *", dob) { dob = it }
             ChoiceRow("लिंग *", listOf("male" to "पुरुष", "female" to "महिला", "other" to "अन्य"), gender) { gender = it }
-            OutlinedTextField(details, { details = it.take(500) }, label = { Text("अपने बारे में (पद, काम आदि)") }, minLines = 2, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp))
-            PickField("वार्ड नंबर", ward, wards) { ward = it }
-            PickField("विधानसभा", assembly, list("assemblies").ifEmpty { DELHI_ASSEMBLIES }.map { it to it }) { assembly = it }
-            PickField("लोकसभा", lokSabha, list("lok_sabha").ifEmpty { DELHI_LOK_SABHA }.map { it to it }) { lokSabha = it }
-            PickField("ज़िला", district, list("districts").map { it to it }) { district = it }
             ChoiceRow("वैवाहिक स्थिति *", listOf("yes" to "विवाहित", "no" to "अविवाहित"), when (married) { true -> "yes"; false -> "no"; else -> "" }) { married = it == "yes" }
             if (married == true) DateField("शादी की सालगिरह / विवाह वर्षगांठ *", anniversary) { anniversary = it }
             OutlinedTextField(family, { v -> family = v.filter { it.isDigit() }.take(2) }, label = { Text("परिवार में सदस्यों की संख्या") }, singleLine = true,
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp))
+            // Area, top down: Lok Sabha > Congress organisational district > Vidhan Sabha > ward. Each list narrows the next.
+            PickField("लोकसभा क्षेत्र", lokSabha, lokOptions.map { it to it }) { lokSabha = it; if (tree.isNotEmpty()) { district = ""; assembly = ""; ward = "" } }
+            PickField("कांग्रेस संगठनात्मक ज़िला", district, districtOptions.map { it to it }) { district = it; if (tree.isNotEmpty()) { assembly = ""; ward = "" } }
+            PickField("विधानसभा", assembly, assemblyOptions.map { it to it }) { assembly = it; if (tree.isNotEmpty()) ward = "" }
+            PickField("वार्ड", ward, wardOptions) { ward = it }
+            OutlinedTextField(details, { details = it.take(500) }, label = { Text("अपने बारे में (पद, काम आदि)") }, minLines = 2, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp))
             OutlinedTextField(mobile, { v -> mobile = v.filter { it.isDigit() }.take(10) }, label = { Text("मोबाइल नंबर") }, singleLine = true, prefix = { Text("+91 ") },
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone), modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp))
             OutlinedTextField(altMobile, { v -> altMobile = v.filter { it.isDigit() }.take(10) }, label = { Text("वैकल्पिक मोबाइल नंबर") }, singleLine = true, prefix = { Text("+91 ") },

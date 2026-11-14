@@ -23,6 +23,18 @@ object Store {
     /** member, president, gs, dp or observer. */
     fun role(ctx: Context): String = prefs(ctx).getString("role", "member") ?: "member"
     fun setRole(ctx: Context, r: String) = prefs(ctx).edit().putString("role", r).apply()
+
+    /** Every profile this number holds (a leader post and/or ward member), as sent at login. */
+    fun profiles(ctx: Context): List<JSONObject> = try {
+        val arr = org.json.JSONArray(prefs(ctx).getString("profiles", "[]"))
+        (0 until arr.length()).map { arr.getJSONObject(it) }
+    } catch (e: Exception) { emptyList() }
+    fun setProfiles(ctx: Context, list: List<JSONObject>) =
+        prefs(ctx).edit().putString("profiles", org.json.JSONArray(list).toString()).apply()
+    /** The profile not open right now, if this number has two. */
+    fun otherProfile(ctx: Context): JSONObject? = profiles(ctx).firstOrNull { it.optString("role") != role(ctx) }
+    /** Opens one of the stored profiles. */
+    fun activate(ctx: Context, p: JSONObject) { setToken(ctx, p.optString("token")); setRole(ctx, p.optString("role", "member")) }
     fun lastPoll(ctx: Context): String? = prefs(ctx).getString("last_poll", null)
     fun setLastPoll(ctx: Context, v: String) = prefs(ctx).edit().putString("last_poll", v).apply()
     fun clear(ctx: Context) = prefs(ctx).edit().clear().apply()

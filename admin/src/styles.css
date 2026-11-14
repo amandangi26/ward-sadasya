@@ -486,3 +486,6 @@ table th{font-size:12px;font-weight:600;letter-spacing:.4px;text-transform:upper
 @keyframes login-spin {
   to { transform: rotate(360deg); }
 }
+
+/* Post link field: taller and easier to see */
+.form input.big,.form textarea.big{padding:13px 14px;font-size:15px;border-width:1.5px;border-color:#B8C1D1;background:#fff}

@@ -17,7 +17,8 @@ import Leaders from './Leaders.jsx';
 import MemberTasks from './MemberTasks.jsx';
 import ToPresident from './ToPresident.jsx';
 import Posters from './Posters.jsx';
-import { BarChart3, ClipboardList, Users, UserCheck, Phone, Bell, MessageCircle, ImageIcon, SettingsIcon } from './icons.jsx';
+import DataIssues from './DataIssues.jsx';
+import { TriangleAlert, BarChart3, ClipboardList, Users, UserCheck, Phone, Bell, MessageCircle, ImageIcon, SettingsIcon } from './icons.jsx';
 import { FileText, ListChecks, Network, Video, LogOut } from 'lucide-react';
 
 const APP_NAME = 'INC MCD NETWORK';
@@ -26,7 +27,7 @@ const APP_NAME = 'INC MCD NETWORK';
 const ADMIN_GROUPS = [
   ['Overview', [['dashboard', 'Analytics', BarChart3], ['reports', 'Reports', FileText]]],
   ['Field work', [['tasks', 'Tasks', ClipboardList], ['membertasks', 'Member tasks', ListChecks], ['leaders', 'Leaders', Network]]],
-  ['People', [['members', 'Ward members', Users], ['profiles', 'Profile updates', UserCheck], ['calling', 'Calling', Phone], ['team', 'Team', ShieldCheck]]],
+  ['People', [['members', 'Ward members', Users], ['profiles', 'Profile updates', UserCheck], ['calling', 'Calling', Phone], ['dataissues', 'Data discrepancies', TriangleAlert], ['team', 'Team', ShieldCheck]]],
   ['Communication', [['messages', 'Leader messages', Video], ['reminders', 'Notifications', Bell], ['topresident', 'Messages to President', MessageCircle], ['posters', 'Posters', ImageIcon]]],
   ['Setup', [['settings', 'Settings', SettingsIcon]]],
 ];
@@ -337,6 +338,7 @@ function App() {
         {tab === 'membertasks' && <MemberTasks />}
         {tab === 'topresident' && <ToPresident />}
         {tab === 'posters' && <Posters />}
+        {tab === 'dataissues' && <DataIssues />}
         {tab === 'settings' && <Settings />}
       </main>
       <Footer />
