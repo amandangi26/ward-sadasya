@@ -5,14 +5,14 @@ plugins {
 
 android {
     namespace = "com.coceptual.delhicongress"
-    compileSdk = 34
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "com.coceptual.delhicongress"
         minSdk = 24
-        targetSdk = 34
-        versionCode = 14
-        versionName = "2.3"
+        targetSdk = 36
+        versionCode = 15
+        versionName = "2.4"
         buildConfigField("String", "API_URL", "\"${project.findProperty("WS_API_URL")}\"")
         buildConfigField("String", "ANON_KEY", "\"${project.findProperty("WS_ANON_KEY")}\"")
         // Firebase (instant notifications). Leave empty to run without push; values come from gradle.properties or CI secrets.

@@ -73,6 +73,6 @@ Camera and gallery are opened through Android's own picker, so no camera or medi
 
 ## Before submitting
 
-1. In admin **Settings**, set the app version code to 14 and the version name to 2.3, so older installs are told to update.
+1. In admin **Settings**, set the app version code to 15 and the version name to 2.4, so older installs are told to update.
 2. Play needs a signed app bundle (.aab). The build workflow now makes one next to the APK; it is in the GitHub release.
 3. Organisation accounts are needed for some app types. If the Play account is a personal one and Google objects, the fix is an organisation account in the name of Coceptual Media or DPCC.

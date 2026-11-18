@@ -22,7 +22,7 @@ jobs:
       - uses: actions/setup-java@v4
         with: { distribution: temurin, java-version: '17' }
       - uses: gradle/actions/setup-gradle@v3
-        with: { gradle-version: '8.7' }
+        with: { gradle-version: '8.11.1' }
       - name: Read app version
         id: ver
         run: |
@@ -55,11 +55,9 @@ jobs:
           make_latest: true
           body: |
             ### INC MCD NETWORK v${{ steps.ver.outputs.name }} (Build ${{ steps.ver.outputs.code }})
-            - हर टास्क अब एक ही सूची में: अध्यक्ष जी की मंज़ूरी के बाद महासचिव, ज़िला अध्यक्ष और ऑब्ज़र्वर के टास्क भी रोज़ के टास्क में, 100 अंक के साथ
-            - दो नए तरह के टास्क: टिक करके सबमिट करें, या लिखकर और बोलकर जवाब दें
-            - पदाधिकारी टास्क पूरा करते समय दो लाइन लिखते हैं; प्रोफ़ाइल में कितने टास्क मिले और कितने पूरे किए
-            - लोकेशन अब कहीं नहीं ली जाती
-            - मेन्यू और लॉगिन स्क्रीन के नीचे Privacy Policy और Request for Account Deletion
+            - Play Store के लिए: ऐप अब Android 16 (API 36) को टारगेट करता है
+            - हर टास्क एक ही सूची में, टिक और लिखकर जवाब वाले नए टास्क, पदाधिकारियों के टास्क की गिनती
+            - लोकेशन कहीं नहीं ली जाती
           files: |
             android/app/build/outputs/apk/release/*.apk
             android/app/build/outputs/bundle/release/*.aab

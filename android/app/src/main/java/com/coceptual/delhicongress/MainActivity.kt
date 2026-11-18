@@ -17,6 +17,7 @@ import android.widget.MediaController
 import android.widget.Toast
 import android.widget.VideoView
 import androidx.activity.ComponentActivity
+import androidx.activity.enableEdgeToEdge
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
@@ -115,9 +116,19 @@ class MainActivity : ComponentActivity() {
         Push.register(this)
         openTask.value = intent?.getLongExtra("open_task", 0L)?.takeIf { it > 0 }
         openInbox.value = intent?.getBooleanExtra("open_inbox", false) == true
+        // From Android 15 the system draws every app behind the status bar and the navigation bar, and the old
+        // statusBarColor is ignored. Turn that on for every Android version so all phones behave the same, then keep
+        // the app's content inside the safe area (also above the keyboard) and paint the status bar strip navy ourselves.
+        enableEdgeToEdge(
+            statusBarStyle = androidx.activity.SystemBarStyle.dark(0xFF0E1B3D.toInt()),
+            navigationBarStyle = androidx.activity.SystemBarStyle.light(android.graphics.Color.WHITE, android.graphics.Color.WHITE),
+        )
         setContent {
             MaterialTheme(colorScheme = lightColorScheme(primary = Blue, secondary = Orange, background = Ground, surface = Color.White), typography = AppTypography) {
-                WardApp(openTask, openInbox)
+                Box(Modifier.fillMaxSize().background(Color.White)) {
+                    Box(Modifier.fillMaxWidth().windowInsetsTopHeight(WindowInsets.statusBars).background(Navy))
+                    Box(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing)) { WardApp(openTask, openInbox) }
+                }
             }
         }
     }

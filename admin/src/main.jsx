@@ -165,7 +165,7 @@ function Login() {
 
             <a href="/download" className="login-apk-link">
               <Download size={15} />
-              <span>Android App (v2.3 APK) डाउनलोड करें</span>
+              <span>Android App (v2.4 APK) डाउनलोड करें</span>
             </a>
           </div>
         </div>
