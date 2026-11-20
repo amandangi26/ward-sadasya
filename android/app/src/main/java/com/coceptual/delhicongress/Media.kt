@@ -318,7 +318,8 @@ object MediaCompressor {
                     ),
                     configureWith = Configuration(
                         quality = VideoQuality.MEDIUM,
-                        isMinBitrateCheckEnabled = true
+                        isMinBitrateCheckEnabled = true,
+                        videoNames = listOf("comp_${System.currentTimeMillis()}.mp4")
                     ),
                     listener = object : CompressionListener {
                         override fun onProgress(index: Int, percent: Float) {

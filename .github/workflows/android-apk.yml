@@ -22,7 +22,9 @@ jobs:
       - uses: actions/setup-java@v4
         with: { distribution: temurin, java-version: '17' }
       - uses: gradle/actions/setup-gradle@v3
-        with: { gradle-version: '8.11.1' }
+        with:
+          gradle-version: '8.11.1'
+          cache-disabled: true
       - name: Read app version
         id: ver
         run: |
@@ -40,7 +42,7 @@ jobs:
           ARGS=""
           if [ -n "$WS_API_URL" ]; then ARGS="$ARGS -PWS_API_URL=$WS_API_URL -PWS_ANON_KEY=$WS_ANON_KEY"; fi
           if [ -n "$FCM_APP_ID" ]; then ARGS="$ARGS -PFCM_APP_ID=$FCM_APP_ID -PFCM_API_KEY=$FCM_API_KEY -PFCM_PROJECT_ID=$FCM_PROJECT_ID -PFCM_SENDER_ID=$FCM_SENDER_ID"; fi
-          gradle assembleRelease bundleRelease $ARGS
+          gradle assembleRelease bundleRelease $ARGS --stacktrace
       - uses: actions/upload-artifact@v4
         with:
           name: inc-mcd-network-release
