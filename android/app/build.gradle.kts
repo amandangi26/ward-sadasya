@@ -11,8 +11,8 @@ android {
         applicationId = "com.coceptual.delhicongress"
         minSdk = 24
         targetSdk = 36
-        versionCode = 15
-        versionName = "2.4"
+        versionCode = 16
+        versionName = "2.5"
         buildConfigField("String", "API_URL", "\"${project.findProperty("WS_API_URL")}\"")
         buildConfigField("String", "ANON_KEY", "\"${project.findProperty("WS_ANON_KEY")}\"")
         // Firebase (instant notifications). Leave empty to run without push; values come from gradle.properties or CI secrets.
@@ -66,4 +66,6 @@ dependencies {
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
     implementation("com.google.firebase:firebase-messaging:24.0.0")
     implementation("io.coil-kt:coil-compose:2.6.0")
+    implementation("androidx.exifinterface:exifinterface:1.3.7")
+    implementation("com.github.AbedElazizShe:LightCompressor:1.3.3")
 }

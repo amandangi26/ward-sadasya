@@ -98,6 +98,14 @@ object Api {
         }
 
     fun fileSize(ctx: Context, uri: Uri): Long {
+        if (uri.scheme == "file") {
+            try {
+                uri.path?.let { p ->
+                    val f = java.io.File(p)
+                    if (f.exists() && f.length() > 0) return f.length()
+                }
+            } catch (_: Exception) {}
+        }
         try {
             ctx.contentResolver.openAssetFileDescriptor(uri, "r")?.use {
                 if (it.length > 0) return it.length
@@ -126,7 +134,12 @@ private class UriBody(
     override fun contentType() = type
     override fun contentLength() = length
     override fun writeTo(sink: BufferedSink) {
-        ctx.contentResolver.openInputStream(uri)!!.use { input ->
+        val stream = if (uri.scheme == "file") {
+            java.io.FileInputStream(java.io.File(uri.path ?: ""))
+        } else {
+            ctx.contentResolver.openInputStream(uri)
+        } ?: throw java.io.IOException("Cannot open stream for $uri")
+        stream.use { input ->
             val buf = ByteArray(64 * 1024)
             var total = 0L
             while (true) {

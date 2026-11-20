@@ -340,7 +340,7 @@ Deno.serve(async (req) => {
       if ((count ?? 0) >= limit) return json({ error: "limit_reached" }, 400);
 
       const s = await settings();
-      const maxMb = Number(s.max_upload_mb || 50);
+      const maxMb = Number(s.max_upload_mb || 100);
       if (body.size && Number(body.size) > maxMb * 1024 * 1024) {
         return json({ error: "file_too_large", max_mb: maxMb }, 400);
       }
@@ -537,7 +537,7 @@ Deno.serve(async (req) => {
     if (action === "own_upload_url") {
       const kind = body.kind === "photo" ? "photo" : body.kind === "audio" ? "audio" : "video";
       const ext = String(body.ext ?? (kind === "video" ? "mp4" : kind === "audio" ? "m4a" : "jpg")).replace(/[^a-z0-9]/gi, "").slice(0, 5) || "bin";
-      if (body.size && Number(body.size) > 50 * 1024 * 1024) return json({ error: "file_too_large", max_mb: 50 }, 400);
+      if (body.size && Number(body.size) > 100 * 1024 * 1024) return json({ error: "file_too_large", max_mb: 100 }, 400);
       const folder = body.purpose === "president" ? "to-president" : "own-tasks";
       const path = `${folder}/${mobile}/${kind}-${Date.now()}.${ext}`;
       const { data, error } = await db.storage.from("uploads").createSignedUploadUrl(path);

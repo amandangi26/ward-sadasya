@@ -474,7 +474,7 @@ Deno.serve(async (req) => {
     if (action === "upload_url") {
       const kind = ["photo", "video", "audio"].includes(body.kind) ? body.kind : "photo";
       const ext = String(body.ext ?? "bin").replace(/[^a-z0-9]/gi, "").slice(0, 5) || "bin";
-      if (body.size && Number(body.size) > 50 * 1024 * 1024) return json({ error: "file_too_large", max_mb: 50 }, 400);
+      if (body.size && Number(body.size) > 100 * 1024 * 1024) return json({ error: "file_too_large", max_mb: 100 }, 400);
       const path = `leaders/${me.mobile}/${kind}-${Date.now()}-${Math.floor(Math.random() * 1e4)}.${ext}`;
       const { data, error } = await db.storage.from("uploads").createSignedUploadUrl(path);
       if (error) throw error;

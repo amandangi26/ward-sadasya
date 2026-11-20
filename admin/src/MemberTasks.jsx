@@ -66,7 +66,12 @@ export default function MemberTasks() {
           <div className="mt-media">
             {(r.media || []).map((x) => files[x.path] ? (x.kind === 'video'
               ? <video key={x.path} src={files[x.path]} controls />
-              : <a key={x.path} href={files[x.path]} target="_blank" rel="noreferrer"><img src={files[x.path]} alt="" /></a>) : null)}
+              : <a key={x.path} href={files[x.path]} target="_blank" rel="noreferrer"><img src={files[x.path]} alt="" /></a>) : (
+              <div key={x.path} style={{ padding: '8px 12px', background: '#F3F4F6', borderRadius: '8px', fontSize: '12px', color: '#4B5563', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <span>📦</span>
+                <span>{x.kind === 'video' ? 'वीडियो' : 'फोटो'} बैकअप में आर्काइव्ड है</span>
+              </div>
+            ))}
           </div>
           <footer>
             <span className="muted" style={{ fontSize: 12.5 }}>Sent {new Date(r.created_at).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' })} · {timeAgo(r.created_at)}</span>

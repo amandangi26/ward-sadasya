@@ -183,7 +183,7 @@ internal fun OwnTasksScreen(onBack: () -> Unit, onLogout: () -> Unit) {
                     if (kind == "photo") photos = photos + path else videos = videos + path
                 } catch (e: ApiError) {
                     if (e.code == "unauthorized") { onLogout(); return@launch }
-                    Toast.makeText(ctx, if (e.code == "file_too_large") "फाइल 50 MB से बड़ी है" else "अपलोड नहीं हुआ", Toast.LENGTH_LONG).show()
+                    Toast.makeText(ctx, if (e.code == "file_too_large") "फाइल साइज बहुत बड़ा है (500 MB तक समर्थित)" else "अपलोड नहीं हुआ", Toast.LENGTH_LONG).show()
                 } catch (e: Exception) {
                     Toast.makeText(ctx, "इंटरनेट चेक करें", Toast.LENGTH_LONG).show()
                 }

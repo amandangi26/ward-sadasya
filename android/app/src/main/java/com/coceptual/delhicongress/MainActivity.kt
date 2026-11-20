@@ -152,7 +152,7 @@ class MainActivity : ComponentActivity() {
 /** Upload screen: idle, sending one file (with progress), removing a wrong file, or submitting the finished task. */
 internal sealed interface TaskPhase {
     data object Idle : TaskPhase
-    data class Uploading(val kind: String, val progress: Float = 0f, val batch: String? = null) : TaskPhase
+    data class Uploading(val kind: String, val progress: Float = 0f, val batch: String? = null, val stage: String = "upload") : TaskPhase
     data object Removing : TaskPhase
     data object Submitting : TaskPhase
 }
@@ -1493,8 +1493,11 @@ internal fun TaskScreen(initial: JSONObject, shareTasks: List<JSONObject>, onBac
     val uploadingKind = uploading?.kind
     val progress = uploading?.progress
     val photoBatch = uploading?.batch
+    val uploadStage = uploading?.stage ?: "upload"
     val submitting = phase is TaskPhase.Submitting
-    fun setProgress(v: Float) { (phase as? TaskPhase.Uploading)?.let { phase = it.copy(progress = v) } }
+    fun setProgress(v: Float, stage: String? = null) {
+        (phase as? TaskPhase.Uploading)?.let { phase = it.copy(progress = v, stage = stage ?: it.stage) }
+    }
     var showSuccessDialog by remember { mutableStateOf(false) }
     var earned by remember { mutableIntStateOf(0) }
     var freshShares by remember { mutableStateOf(shareTasks) }
@@ -1517,54 +1520,72 @@ internal fun TaskScreen(initial: JSONObject, shareTasks: List<JSONObject>, onBac
         if (busy) Toast.makeText(ctx, "अपलोड पूरा होने दें", Toast.LENGTH_SHORT).show() else onBack()
     }
 
-    /** Uploads one file and attaches it to the task. Returns false if it should stop a batch. */
+    /** Uploads one file and attaches it to the task with on-device compression. Returns false if it should stop a batch. */
     suspend fun uploadOne(uri: Uri, kind: String): Boolean {
-        val mime = ctx.contentResolver.getType(uri) ?: if (kind == "video") "video/mp4" else "image/jpeg"
-        val size = Api.fileSize(ctx, uri)
-        val maxBytes = 50L * 1024 * 1024 // 50 MB limit for Supabase Storage
-        if (size > maxBytes) {
-            val mb = (size / (1024 * 1024)).toInt()
-            Toast.makeText(ctx, "यह फाइल $mb MB की है। 50 MB से छोटी फाइल चुनें।", Toast.LENGTH_LONG).show()
+        val rawSize = Api.fileSize(ctx, uri)
+        val maxBytes = 500L * 1024 * 1024 // 500 MB limit for selection
+        if (rawSize > maxBytes) {
+            val mb = (rawSize / (1024 * 1024)).toInt()
+            Toast.makeText(ctx, "फाइल 500 MB से बड़ी है ($mb MB)। कृपया 500 MB से छोटी फाइल चुनें।", Toast.LENGTH_LONG).show()
             return true
         }
-        val ext = MimeTypeMap.getSingleton().getExtensionFromMimeType(mime) ?: if (kind == "video") "mp4" else "jpg"
-        setProgress(0f)
-            try {
-                val u = Api.call(ctx, "upload_url", JSONObject().put("task_id", taskId).put("kind", kind).put("ext", ext).put("size", size))
-                var lastErr: Exception? = null
-                var ok = false
-                for (attempt in 1..3) {
-                    try {
-                        Api.upload(ctx, u.getString("signed_url"), uri, mime) { p -> setProgress(p) }
-                        ok = true; break
-                    } catch (e: Exception) { lastErr = e; setProgress(0f) }
-                }
-                if (!ok) throw lastErr ?: Exception("upload")
-                val r = Api.call(ctx, "attach", JSONObject().put("task_id", taskId).put("kind", kind).put("path", u.getString("path")).put("size", size))
-                r.optJSONObject("task")?.let { videos = it.optInt("videos"); photos = it.optInt("photos") }
-                return true
-            } catch (e: ApiError) {
-                val detail = e.body.optString("detail", "")
-                when {
-                    e.code == "unauthorized" -> { onLogout(); return false }
-                    e.code == "not_open_yet" -> Toast.makeText(ctx, "यह टास्क अपनी तारीख पर खुलेगा", Toast.LENGTH_LONG).show()
-                    e.code == "limit_reached" -> {
-                        Toast.makeText(ctx, if (kind == "video") "इस टास्क के सभी वीडियो जुड़ चुके हैं" else "इस टास्क में $NEED_PHOTOS फोटो जुड़ चुकी हैं", Toast.LENGTH_LONG).show()
-                        return false
-                    }
-                    e.code == "file_too_large" || detail.contains("EntityTooLarge", ignoreCase = true) || detail.contains("Payload too large", ignoreCase = true) -> {
-                        Toast.makeText(ctx, "फाइल साइज 50 MB से बड़ा है। छोटा वीडियो चुनें।", Toast.LENGTH_LONG).show()
-                    }
-                    e.code.startsWith("upload_failed_") -> {
-                        val status = e.code.removePrefix("upload_failed_")
-                        Toast.makeText(ctx, "अपलोड नहीं हो पाया (कोड $status)। एक बार फिर कोशिश करें।", Toast.LENGTH_LONG).show()
-                    }
-                    else -> Toast.makeText(ctx, "अपलोड नहीं हुआ (${e.code})", Toast.LENGTH_LONG).show()
-                }
-            } catch (e: Exception) {
-                Toast.makeText(ctx, "इंटरनेट चेक करें और फिर कोशिश करें (${e.message ?: "error"})", Toast.LENGTH_LONG).show()
+
+        setProgress(0f, stage = "compress")
+        var compressedFile: java.io.File? = null
+        try {
+            compressedFile = if (kind == "video") {
+                MediaCompressor.compressVideo(ctx, uri) { p -> setProgress(p, stage = "compress") }
+            } else {
+                MediaCompressor.compressPhoto(ctx, uri)
             }
-            return false
+            val targetUri = compressedFile?.let { Uri.fromFile(it) } ?: uri
+            val size = Api.fileSize(ctx, targetUri)
+            if (size <= 0) {
+                Toast.makeText(ctx, "फाइल पढ़ी नहीं जा सकी। कृपया दूसरी फाइल चुनें।", Toast.LENGTH_SHORT).show()
+                return false
+            }
+            val mime = if (kind == "video") "video/mp4" else "image/jpeg"
+            val ext = if (kind == "video") "mp4" else "jpg"
+
+            setProgress(0f, stage = "upload")
+            val u = Api.call(ctx, "upload_url", JSONObject().put("task_id", taskId).put("kind", kind).put("ext", ext).put("size", size))
+            var lastErr: Exception? = null
+            var ok = false
+            for (attempt in 1..3) {
+                try {
+                    Api.upload(ctx, u.getString("signed_url"), targetUri, mime) { p -> setProgress(p, stage = "upload") }
+                    ok = true; break
+                } catch (e: Exception) { lastErr = e; setProgress(0f, stage = "upload") }
+            }
+            if (!ok) throw lastErr ?: Exception("upload")
+            val r = Api.call(ctx, "attach", JSONObject().put("task_id", taskId).put("kind", kind).put("path", u.getString("path")).put("size", size))
+            r.optJSONObject("task")?.let { videos = it.optInt("videos"); photos = it.optInt("photos") }
+            return true
+        } catch (e: ApiError) {
+            val detail = e.body.optString("detail", "")
+            when {
+                e.code == "unauthorized" -> { onLogout(); return false }
+                e.code == "not_open_yet" -> Toast.makeText(ctx, "यह टास्क अपनी तारीख पर खुलेगा", Toast.LENGTH_LONG).show()
+                e.code == "limit_reached" -> {
+                    Toast.makeText(ctx, if (kind == "video") "इस टास्क के सभी वीडियो जुड़ चुके हैं" else "इस टास्क में $NEED_PHOTOS फोटो जुड़ चुकी हैं", Toast.LENGTH_LONG).show()
+                    return false
+                }
+                e.code == "file_too_large" || detail.contains("EntityTooLarge", ignoreCase = true) || detail.contains("Payload too large", ignoreCase = true) -> {
+                    Toast.makeText(ctx, "फाइल साइज बहुत बड़ा है। छोटा वीडियो चुनें।", Toast.LENGTH_LONG).show()
+                }
+                e.code.startsWith("upload_failed_") -> {
+                    Toast.makeText(ctx, "अपलोड असफल रहा। कृपया इंटरनेट चेक करके दोबारा कोशिश करें।", Toast.LENGTH_LONG).show()
+                }
+                else -> Toast.makeText(ctx, "अपलोड नहीं हुआ (${e.code})", Toast.LENGTH_LONG).show()
+            }
+        } catch (e: Exception) {
+            Toast.makeText(ctx, "इंटरनेट धीमा या बंद है। कृपया दोबारा कोशिश करें।", Toast.LENGTH_LONG).show()
+        } finally {
+            compressedFile?.let {
+                try { it.delete() } catch (_: Exception) {}
+            }
+        }
+        return false
     }
 
     /** Takes off the last uploaded photo or video so the right one can be put in. */
@@ -1635,7 +1656,7 @@ internal fun TaskScreen(initial: JSONObject, shareTasks: List<JSONObject>, onBac
                 for (i in 0 until slots) {
                     when {
                         i < videos -> SlotRow("वीडियो ${i + 1}", "अपलोड पूरा", GreenText, filled = true, onRemove = if (i == videos - 1 && !busy) ({ removeLast("video") }) else null) {}
-                        i == videos && uploadingKind == "video" -> UploadingRow("वीडियो ${i + 1}", progress ?: 0f)
+                        i == videos && uploadingKind == "video" -> UploadingRow("वीडियो ${i + 1}", progress ?: 0f, uploadStage)
                         else -> SlotRow("वीडियो ${i + 1}", "गैलरी से वीडियो चुनें", Blue, filled = false, enabled = !busy && i == videos) {
                             pickVideo.launch("video/*")
                         }
@@ -1652,7 +1673,7 @@ internal fun TaskScreen(initial: JSONObject, shareTasks: List<JSONObject>, onBac
                 for (i in 0 until NEED_PHOTOS) {
                     when {
                         i < photos -> SlotRow("फोटो ${i + 1}", "अपलोड पूरा", GreenText, filled = true, onRemove = if (i == photos - 1 && !busy) ({ removeLast("photo") }) else null) {}
-                        i == photos && uploadingKind == "photo" -> UploadingRow(photoBatch?.let { "फोटो $it" } ?: "फोटो ${i + 1}", progress ?: 0f)
+                        i == photos && uploadingKind == "photo" -> UploadingRow(photoBatch?.let { "फोटो $it" } ?: "फोटो ${i + 1}", progress ?: 0f, uploadStage)
                         else -> SlotRow("फोटो ${i + 1}", "गैलरी से फोटो चुनें (एक साथ दोनों भी चुन सकते हैं)", Blue, filled = false, enabled = !busy && i == photos) {
                             pickPhoto.launch("image/*")
                         }
@@ -1839,11 +1860,12 @@ internal fun SlotRow(title: String, sub: String, subColor: Color, filled: Boolea
 }
 
 @Composable
-internal fun UploadingRow(title: String, p: Float) {
+internal fun UploadingRow(title: String, p: Float, stage: String = "upload") {
+    val actionText = if (stage == "compress") "Compressing…" else "Uploading…"
     Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp)).background(Color.White).padding(10.dp)) {
-        Text("$title अपलोड हो रहा है… ${(p * 100).toInt()}%", fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+        Text("$title $actionText ${(p * 100).toInt()}%", fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
         LinearProgressIndicator(progress = { p }, modifier = Modifier.padding(top = 6.dp).fillMaxWidth())
-        Text("स्क्रीन और ऐप खुला रखें (अपलोड जारी है)", fontSize = 11.sp, color = Muted, modifier = Modifier.padding(top = 4.dp))
+        Text("कृपया ऐप खुला रखें", fontSize = 11.sp, color = Muted, modifier = Modifier.padding(top = 4.dp))
     }
 }
 

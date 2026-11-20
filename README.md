@@ -1,8 +1,8 @@
 # INC MCD NETWORK (Delhi Pradesh Congress Committee)
 
-[![Latest Release](https://img.shields.io/badge/version-v2.3%20(Build%2014)-blue.svg)](https://github.com/amandangi26/ward-sadasya/releases/latest)
+[![Latest Release](https://img.shields.io/badge/version-v2.5%20(Build%2016)-blue.svg)](https://github.com/amandangi26/ward-sadasya/releases/latest)
 [![Package Name](https://img.shields.io/badge/package-com.coceptual.delhicongress-1B4FA8.svg)]()
-[![Platform](https://img.shields.io/badge/platform-Android%20%7C%20Web%20Admin-green.svg)]()
+ [![Platform](https://img.shields.io/badge/platform-Android%20%7C%20Web%20Admin-green.svg)]()
 [![Google Play](https://img.shields.io/badge/Play%20Store-Ready%20(.AAB)-34A853.svg)](https://github.com/amandangi26/ward-sadasya/releases/latest)
 [![Backend](https://img.shields.io/badge/backend-Supabase%20Edge%20Functions-3ECF8E.svg)]()
 [![Portal](https://img.shields.io/badge/portal-congressdelhinetwork.com-1B4FA8.svg)](https://congressdelhinetwork.com/mcd)
@@ -61,9 +61,9 @@ Essential technical specifications for Google Play Console submission:
 | :--- | :--- | :--- |
 | **App Name** | `INC MCD NETWORK` | Official app title (max 30 characters) |
 | **Package Name (Application ID)** | `com.coceptual.delhicongress` | Unique identifier on Google Play |
-| **Version Name** | `2.3` | User-facing release version |
-| **Version Code** | `14` | Build increment integer |
-| **Target SDK** | `34` (Android 14) | Compliant with Google Play's latest requirements |
+| **Version Name** | `2.5` | User-facing release version |
+| **Version Code** | `16` | Build increment integer |
+| **Target SDK** | `36` (Android 16) | Compliant with Google Play's latest requirements |
 | **Minimum SDK** | `24` (Android 7.0) | Supports 98%+ of active Android devices |
 | **Production Bundle** | `app-release.aab` | Android App Bundle uploaded to Google Play |
 | **Direct APK** | `app-release.apk` | Standalone signed APK for direct installation |
@@ -169,7 +169,15 @@ npm run build
 
 ## 📜 Version History & Changelog
 
-* **v2.3 (Build 14) - Latest:**
+* **v2.5 (Build 16) - Latest:**
+  * Enabled user uploads up to 500 MB with high-performance on-device video (hardware H.264/AAC) and image compression.
+  * Direct Presigned Storage Upload architecture eliminates main server compute and bandwidth overhead.
+  * Added graceful offline media archive UI states in Admin Panel for backed-up assets.
+* **v2.4 (Build 15):**
+  * Updated targetSdk and compileSdk to API 36 (Android 16) for latest Google Play release standards.
+  * Implemented `enableEdgeToEdge()` for safe system bar rendering across Android 15/16 devices.
+  * Upgraded Gradle to 8.11.1 and Android Gradle Plugin to 8.9.1.
+* **v2.3 (Build 14):**
   * Added Checklist (`choice`) and Written/Spoken (`text`) task types.
   * Implemented Unified Task Funnel (leadership assignments integrated into daily tasks).
   * Removed location tracking and permissions for streamlined Google Play Store approval.
