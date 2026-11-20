@@ -313,14 +313,12 @@ object MediaCompressor {
                     context = ctx.applicationContext,
                     uris = listOf(uri),
                     isStreamable = false,
-                    sharedStorageConfiguration = null,
-                    appSpecificStorageConfiguration = AppSpecificStorageConfiguration(
+                    storageConfiguration = AppSpecificStorageConfiguration(
                         subFolderName = "compressed_videos"
                     ),
                     configureWith = Configuration(
                         quality = VideoQuality.MEDIUM,
-                        isMinBitrateCheckEnabled = true,
-                        keepOriginalResolution = false
+                        isMinBitrateCheckEnabled = true
                     ),
                     listener = object : CompressionListener {
                         override fun onProgress(index: Int, percent: Float) {
