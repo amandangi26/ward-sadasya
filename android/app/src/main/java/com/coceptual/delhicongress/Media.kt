@@ -319,6 +319,9 @@ object MediaCompressor {
                     configureWith = Configuration(
                         quality = VideoQuality.MEDIUM,
                         isMinBitrateCheckEnabled = true,
+                        videoBitrateInMbps = null,
+                        disableAudio = false,
+                        keepOriginalResolution = false,
                         videoNames = listOf("comp_${System.currentTimeMillis()}.mp4")
                     ),
                     listener = object : CompressionListener {
