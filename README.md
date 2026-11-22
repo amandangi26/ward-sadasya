@@ -19,6 +19,7 @@
 | **Fallback Admin Portal** | [ward-sadasya.vercel.app/mcd](https://ward-sadasya.vercel.app/mcd) | Vercel production backup mirror |
 | **App Download (APK & AAB)** | [congressdelhinetwork.com/download](https://congressdelhinetwork.com/download) | Worker download landing page with auto-updates |
 | **Privacy Policy** | [congressdelhinetwork.com/privacy](https://congressdelhinetwork.com/privacy) | DPDP Act 2023 & Google Play compliant privacy policy |
+| **Terms of Service** | [congressdelhinetwork.com/terms](https://congressdelhinetwork.com/terms) | Google Play compliant Terms of Service & usage agreement |
 | **Account Deletion Request** | [congressdelhinetwork.com/delete-account](https://congressdelhinetwork.com/delete-account) | Mandatory Google Play user data & account deletion mechanism |
 | **Latest Releases** | [GitHub Releases Latest](https://github.com/amandangi26/ward-sadasya/releases/latest) | Direct downloads for `.aab` (Google Play) and `.apk` |
 
