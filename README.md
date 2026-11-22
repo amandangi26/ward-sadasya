@@ -1,4 +1,4 @@
-# INC MCD NETWORK (Delhi Pradesh Congress Committee)
+# INC Delhi (Delhi Pradesh Congress Committee)
 
 [![Latest Release](https://img.shields.io/badge/version-v2.5%20(Build%2016)-blue.svg)](https://github.com/amandangi26/ward-sadasya/releases/latest)
 [![Package Name](https://img.shields.io/badge/package-com.coceptual.delhicongress-1B4FA8.svg)]()
@@ -7,7 +7,7 @@
 [![Backend](https://img.shields.io/badge/backend-Supabase%20Edge%20Functions-3ECF8E.svg)]()
 [![Portal](https://img.shields.io/badge/portal-congressdelhinetwork.com-1B4FA8.svg)](https://congressdelhinetwork.com/mcd)
 
-**INC MCD NETWORK** is the official digital operations and campaign management platform of the Delhi Pradesh Congress Committee (DPCC). It connects, mobilizes, and evaluates organizational workers, block presidents, assembly observers, and district executives across all **250 MCD wards**, 70 Delhi Assembly constituencies, and 14 organizational districts.
+**INC Delhi** is the official digital operations and campaign management platform of the Delhi Pradesh Congress Committee (DPCC). It connects, mobilizes, and evaluates organizational workers, block presidents, assembly observers, and district executives across all **250 MCD wards**, 70 Delhi Assembly constituencies, and 14 organizational districts.
 
 ---
 

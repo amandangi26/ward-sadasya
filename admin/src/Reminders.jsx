@@ -50,7 +50,7 @@ export default function Reminders() {
   const send = async (e) => {
     e.preventDefault();
     setSending(true); setResult(null);
-    const heading = title.trim() || 'INC MCD NETWORK';
+    const heading = title.trim() || 'INC Delhi';
     if (group === 'leaders') {
       // Leaders: straight into each one's inbox in the app (red dot until they open it).
       const ls = await fetchAll('leaders', 'mobile, district', (q) => q.eq('active', true).eq('role', level));
@@ -58,7 +58,7 @@ export default function Reminders() {
       let failed = '';
       for (let i = 0; i < to.length; i += 500) {
         const { error } = await supabase.from('inbox').insert(to.slice(i, i + 500).map((m) => ({
-          to_mobile: m, from_name: 'INC MCD NETWORK', from_role: 'admin', kind: 'notice', text: title.trim() ? `${title.trim()}\n${body}` : body,
+          to_mobile: m, from_name: 'INC Delhi', from_role: 'admin', kind: 'notice', text: title.trim() ? `${title.trim()}\n${body}` : body,
         })));
         if (error) { failed = error.message; break; }
       }
@@ -146,7 +146,7 @@ export default function Reminders() {
               {TEMPLATES.map((t, i) => <option key={t[0]} value={i}>{t[0]}</option>)}
             </select>
           </label>
-          <label>Title (optional)<input type="text" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="INC MCD NETWORK" /></label>
+          <label>Title (optional)<input type="text" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="INC Delhi" /></label>
           <label style={{ gridColumn: '1 / -1' }}>Message (Hindi)<textarea rows="3" value={body} onChange={(e) => setBody(e.target.value)} required placeholder="आज के टास्क रात 11:59 तक पूरे करें" /></label>
           <div><button className="btn" type="submit" disabled={sending}>{sending ? 'Sending…' : 'Send now'}</button></div>
         </form>

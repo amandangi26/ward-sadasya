@@ -86,7 +86,7 @@ class ReminderWorker(ctx: Context, params: WorkerParameters) : CoroutineWorker(c
                 val a = ann.getJSONObject(i)
                 if (pushReady && !a.isNull("pushed_count")) continue
                 val annId = a.optInt("id", i)
-                val title = a.optString("title").takeIf { it.isNotBlank() && it != "null" } ?: "INC MCD NETWORK"
+                val title = a.optString("title").takeIf { it.isNotBlank() && it != "null" } ?: "INC Delhi"
                 Notify.show(ctx, 1000 + annId, title, a.optString("body"), urgent = a.optString("priority") == "high")
             }
         }

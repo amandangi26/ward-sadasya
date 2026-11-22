@@ -23,7 +23,7 @@ import Deletions from './Deletions.jsx';
 import { TriangleAlert, BarChart3, ClipboardList, Users, UserCheck, Phone, Bell, MessageCircle, ImageIcon, SettingsIcon } from './icons.jsx';
 import { FileText, ListChecks, Network, Video, LogOut, ClipboardCheck, UserX } from 'lucide-react';
 
-const APP_NAME = 'INC MCD NETWORK';
+const APP_NAME = 'INC Delhi';
 
 // Sidebar groups for the admin. Each entry: [id, label, icon].
 const ADMIN_GROUPS = [

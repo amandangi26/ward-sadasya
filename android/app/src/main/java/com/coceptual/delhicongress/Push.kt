@@ -101,7 +101,7 @@ class PushService : FirebaseMessagingService() {
     }
 
     override fun onMessageReceived(message: RemoteMessage) {
-        val title = message.data["title"] ?: message.notification?.title ?: "INC MCD NETWORK"
+        val title = message.data["title"] ?: message.notification?.title ?: "INC Delhi"
         val body = message.data["body"] ?: message.notification?.body ?: return
         val id = 50_000 + ((message.data["type"].orEmpty() + message.data["ref_id"].orEmpty()).hashCode() and 0xFFFF)
         Notify.show(applicationContext, id, title, body, urgent = true)

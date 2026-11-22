@@ -91,7 +91,7 @@ import java.text.NumberFormat
 import java.util.Calendar
 import java.util.Locale
 
-const val APP_NAME = "INC MCD NETWORK"
+const val APP_NAME = "INC Delhi"
 
 internal val Navy = Color(0xFF0E1B3D)
 internal val NavySoft = Color(0xFF172A59)
