@@ -22,12 +22,26 @@ android {
         buildConfigField("String", "FCM_SENDER_ID", "\"${project.findProperty("FCM_SENDER_ID") ?: ""}\"")
     }
 
+    val localProperties = java.util.Properties().apply {
+        val f = rootProject.file("local.properties")
+        if (f.exists()) f.inputStream().use { load(it) }
+    }
+
     signingConfigs {
         create("release") {
             storeFile = file("release.keystore")
-            storePassword = "WardSadasya#108"
-            keyAlias = "wardsadasya"
-            keyPassword = "WardSadasya#108"
+            storePassword = (project.findProperty("KEYSTORE_PASSWORD") as? String)
+                ?: localProperties.getProperty("KEYSTORE_PASSWORD")
+                ?: System.getenv("KEYSTORE_PASSWORD")
+                ?: ""
+            keyAlias = (project.findProperty("KEY_ALIAS") as? String)
+                ?: localProperties.getProperty("KEY_ALIAS")
+                ?: System.getenv("KEY_ALIAS")
+                ?: "wardsadasya"
+            keyPassword = (project.findProperty("KEY_PASSWORD") as? String)
+                ?: localProperties.getProperty("KEY_PASSWORD")
+                ?: System.getenv("KEY_PASSWORD")
+                ?: ""
         }
     }
 
