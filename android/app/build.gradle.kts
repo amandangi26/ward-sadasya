@@ -9,24 +9,36 @@ android {
     namespace = "com.coceptual.delhicongress"
     compileSdk = 36
 
+    val localProperties = Properties().apply {
+        val f = rootProject.file("local.properties")
+        if (f.exists()) f.inputStream().use { load(it) }
+    }
+
     defaultConfig {
         applicationId = "com.coceptual.delhicongress"
         minSdk = 24
         targetSdk = 36
         versionCode = 16
         versionName = "2.5"
-        buildConfigField("String", "API_URL", "\"${project.findProperty("WS_API_URL")}\"")
-        buildConfigField("String", "ANON_KEY", "\"${project.findProperty("WS_ANON_KEY")}\"")
-        // Firebase (instant notifications). Leave empty to run without push; values come from gradle.properties or CI secrets.
-        buildConfigField("String", "FCM_APP_ID", "\"${project.findProperty("FCM_APP_ID") ?: ""}\"")
-        buildConfigField("String", "FCM_API_KEY", "\"${project.findProperty("FCM_API_KEY") ?: ""}\"")
-        buildConfigField("String", "FCM_PROJECT_ID", "\"${project.findProperty("FCM_PROJECT_ID") ?: ""}\"")
-        buildConfigField("String", "FCM_SENDER_ID", "\"${project.findProperty("FCM_SENDER_ID") ?: ""}\"")
-    }
+        val apiUrl = (project.findProperty("WS_API_URL") as? String)?.takeIf { it.isNotBlank() }
+            ?: localProperties.getProperty("WS_API_URL") ?: ""
+        val anonKey = (project.findProperty("WS_ANON_KEY") as? String)?.takeIf { it.isNotBlank() }
+            ?: localProperties.getProperty("WS_ANON_KEY") ?: ""
+        val fcmAppId = (project.findProperty("FCM_APP_ID") as? String)?.takeIf { it.isNotBlank() }
+            ?: localProperties.getProperty("FCM_APP_ID") ?: ""
+        val fcmApiKey = (project.findProperty("FCM_API_KEY") as? String)?.takeIf { it.isNotBlank() }
+            ?: localProperties.getProperty("FCM_API_KEY") ?: ""
+        val fcmProjectId = (project.findProperty("FCM_PROJECT_ID") as? String)?.takeIf { it.isNotBlank() }
+            ?: localProperties.getProperty("FCM_PROJECT_ID") ?: ""
+        val fcmSenderId = (project.findProperty("FCM_SENDER_ID") as? String)?.takeIf { it.isNotBlank() }
+            ?: localProperties.getProperty("FCM_SENDER_ID") ?: ""
 
-    val localProperties = Properties().apply {
-        val f = rootProject.file("local.properties")
-        if (f.exists()) f.inputStream().use { load(it) }
+        buildConfigField("String", "API_URL", "\"$apiUrl\"")
+        buildConfigField("String", "ANON_KEY", "\"$anonKey\"")
+        buildConfigField("String", "FCM_APP_ID", "\"$fcmAppId\"")
+        buildConfigField("String", "FCM_API_KEY", "\"$fcmApiKey\"")
+        buildConfigField("String", "FCM_PROJECT_ID", "\"$fcmProjectId\"")
+        buildConfigField("String", "FCM_SENDER_ID", "\"$fcmSenderId\"")
     }
 
     signingConfigs {
