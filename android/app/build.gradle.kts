@@ -32,10 +32,11 @@ android {
     signingConfigs {
         create("release") {
             storeFile = file("release.keystore")
-            storePassword = (project.findProperty("KEYSTORE_PASSWORD") as? String)
+            val pass = (project.findProperty("KEYSTORE_PASSWORD") as? String)
                 ?: localProperties.getProperty("KEYSTORE_PASSWORD")
                 ?: System.getenv("KEYSTORE_PASSWORD")
                 ?: ""
+            storePassword = pass
             keyAlias = (project.findProperty("KEY_ALIAS") as? String)
                 ?: localProperties.getProperty("KEY_ALIAS")
                 ?: System.getenv("KEY_ALIAS")
@@ -43,7 +44,7 @@ android {
             keyPassword = (project.findProperty("KEY_PASSWORD") as? String)
                 ?: localProperties.getProperty("KEY_PASSWORD")
                 ?: System.getenv("KEY_PASSWORD")
-                ?: ""
+                ?: pass
         }
     }
 

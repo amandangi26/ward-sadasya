@@ -38,10 +38,12 @@ jobs:
           FCM_API_KEY: ${{ secrets.FCM_API_KEY }}
           FCM_PROJECT_ID: ${{ secrets.FCM_PROJECT_ID }}
           FCM_SENDER_ID: ${{ secrets.FCM_SENDER_ID }}
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
         run: |
           ARGS=""
           if [ -n "$WS_API_URL" ]; then ARGS="$ARGS -PWS_API_URL=$WS_API_URL -PWS_ANON_KEY=$WS_ANON_KEY"; fi
           if [ -n "$FCM_APP_ID" ]; then ARGS="$ARGS -PFCM_APP_ID=$FCM_APP_ID -PFCM_API_KEY=$FCM_API_KEY -PFCM_PROJECT_ID=$FCM_PROJECT_ID -PFCM_SENDER_ID=$FCM_SENDER_ID"; fi
+          if [ -n "$KEYSTORE_PASSWORD" ]; then ARGS="$ARGS -PKEYSTORE_PASSWORD=$KEYSTORE_PASSWORD -PKEY_PASSWORD=$KEYSTORE_PASSWORD"; fi
           gradle assembleRelease bundleRelease $ARGS --stacktrace
       - uses: actions/upload-artifact@v4
         with:

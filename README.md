@@ -157,6 +157,8 @@ npm run build
 ```
 
 ### 3. Android Build (APK & AAB)
+* **Signing Configuration:** Release signing credentials are securely externalized from source control. They are loaded dynamically from `android/local.properties` (for local builds) or GitHub Secrets (`KEYSTORE_PASSWORD`) for automated CI builds.
+* **Push Notifications:** Powered by Firebase Cloud Messaging (FCM) HTTP v1 for instant alerts (tasks, announcements, leader messages) with background/killed state delivery.
 * **Continuous Integration (GitHub Actions):** Pushing to `main` automatically triggers `.github/workflows/android-apk.yml`, building and signing both `.apk` and `.aab` artifacts.
 * **Local Terminal Build:**
   ```bash
@@ -171,6 +173,8 @@ npm run build
 ## 📜 Version History & Changelog
 
 * **v2.5 (Build 16) - Latest:**
+  * Configured instant real-time notifications via Firebase Cloud Messaging (FCM) HTTP v1 with audience targeting (`all`, `ward`, `district`).
+  * Externalized Android keystore signing credentials into `local.properties` and CI secrets for strict repository security.
   * Enabled user uploads up to 500 MB with high-performance on-device video (hardware H.264/AAC) and image compression.
   * Direct Presigned Storage Upload architecture eliminates main server compute and bandwidth overhead.
   * Added graceful offline media archive UI states in Admin Panel for backed-up assets.
